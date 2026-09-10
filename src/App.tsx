@@ -1,18 +1,20 @@
-import { useEffect, useReducer } from "react";
+import { useEffect, useReducer, useState } from "react";
+import "./App.css";
+
 import { formReducer, initialState } from "./reducer/formReducer";
-import PersonalInfo from "./components/PersonalInfo";
-import Education from "./components/Education";
-import Experience from "./components/Experience";
+
+
 import Review from "./components/Review";
+import DynamicForm from "./components/DynamicForm";
+
 import {
   educationSchema,
   experienceSchema,
   personalInfoSchema,
 } from "./validation/formSchemas";
 
-import "./App.css"
-
-
+import { formSchema } from "./schema/formSchema";
+import type { ObjectSchema } from "./types/jsonSchema";
 
 function validateStep(
   currentStep: number,
@@ -22,16 +24,15 @@ function validateStep(
     education: string;
     experience: string;
   },
+  dynamicFormData: Record<string, unknown>,
 ) {
   const errors: Record<string, string> = {};
 
   if (currentStep === 1) {
     const result = personalInfoSchema.safeParse({
-      name: state.name,
-      email: state.email,
+      name: dynamicFormData.name,
+      email: dynamicFormData.email,
     });
-
-    // console.log("ZOD RESULT: ", result)
 
     if (!result.success) {
       result.error.issues.forEach((issue) => {
@@ -42,12 +43,11 @@ function validateStep(
         }
       });
     }
-    // console.log("Errors: ", errors);
   }
 
   if (currentStep === 2) {
     const result = educationSchema.safeParse({
-      education: state.education,
+      education: dynamicFormData.education,
     });
 
     if (!result.success) {
@@ -63,7 +63,7 @@ function validateStep(
 
   if (currentStep === 3) {
     const result = experienceSchema.safeParse({
-      experience: state.experience,
+      experience: dynamicFormData.experience,
     });
 
     if (!result.success) {
@@ -90,15 +90,90 @@ function getInitialState() {
   return initialState;
 }
 
+const stepSchemas = [
+  formSchema.personalInfo as ObjectSchema,
+  formSchema.education as ObjectSchema,
+  formSchema.experience as ObjectSchema,
+];
+
 export default function App() {
   const [state, dispatch] = useReducer(formReducer, getInitialState());
+
+  const [dynamicFormData, setDynamicFormData] = useState<Record<string, any>>({
+    name: "",
+    email: "",
+    education: "",
+    experience: "",
+    address: {
+      city: "",
+      country: "",
+    },
+
+  });
 
   useEffect(() => {
     localStorage.setItem("jobApplication", JSON.stringify(state));
   }, [state]);
 
+  function handleDynamicFormChange(fieldName: string, value: string) {
+    setDynamicFormData((previousData) => {
+      const updatedData = { ...previousData };
+
+      const path = fieldName.split(".");
+
+      if (path.length === 1) {
+        updatedData[fieldName] = value;
+        return updatedData;
+      }
+
+      let current: Record<string, any> = updatedData;
+
+      for (let i = 0; i < path.length - 1; i++) {
+        const key = path[i];
+
+        if (!current[key]) {
+          current[key] = {};
+        }
+
+        current = current[key];
+      }
+
+      current[path[path.length - 1]] = value;
+
+      return updatedData;
+    });
+
+    if (fieldName === "name") {
+      dispatch({
+        type: "UPDATE_NAME",
+        payload: value,
+      });
+    }
+
+    if (fieldName === "email") {
+      dispatch({
+        type: "UPDATE_EMAIL",
+        payload: value,
+      });
+    }
+
+    if (fieldName === "education") {
+      dispatch({
+        type: "UPDATE_EDUCATION",
+        payload: value,
+      });
+    }
+
+    if (fieldName === "experience") {
+      dispatch({
+        type: "UPDATE_EXPERIENCE",
+        payload: value,
+      });
+    }
+  }
+
   function handleNext() {
-    const errors = validateStep(state.currentStep, state);
+    const errors = validateStep(state.currentStep, state, dynamicFormData);
 
     if (Object.keys(errors).length > 0) {
       dispatch({
@@ -132,57 +207,25 @@ export default function App() {
   }
 
   return (
-    <main className="job-form" >
+    <main className="job-form">
       <h1>Job Application Form</h1>
+
+      {state.currentStep <= 3 && (
+        <DynamicForm
+          schema={stepSchemas[state.currentStep - 1].properties}
+          formData={dynamicFormData}
+          onChange={handleDynamicFormChange}
+          errors={state.errors}
+        />
+      )}
 
       <p>Current Step: {state.currentStep}</p>
 
-      {state.currentStep === 1 && (
-        <PersonalInfo
-          name={state.name}
-          email={state.email}
-          errors={state.errors}
-          onNameChange={(value) =>
-            dispatch({
-              type: "UPDATE_NAME",
-              payload: value,
-            })
-          }
-          onEmailChange={(value) =>
-            dispatch({
-              type: "UPDATE_EMAIL",
-              payload: value,
-            })
-          }
-        />
-      )}
+      
 
-      {state.currentStep === 2 && (
-        <Education
-          education={state.education}
-          errors={state.errors}
-          onEducationChange={(value) =>
-            dispatch({
-              type: "UPDATE_EDUCATION",
-              payload: value,
-            })
-          }
-        />
-      )}
+      
 
-      {state.currentStep === 3 && (
-        <Experience
-          experience={state.experience}
-          errors={state.errors}
-          onExperienceChange={(value) =>
-            dispatch({
-              type: "UPDATE_EXPERIENCE",
-              payload: value,
-            })
-          }
-        />
-      )}
-
+      
       {state.currentStep === 4 && (
         <>
           <Review
@@ -190,6 +233,10 @@ export default function App() {
             email={state.email}
             education={state.education}
             experience={state.experience}
+            address={dynamicFormData.address as {
+              city: string;
+              country: string;
+            }}
           />
 
           <button onClick={handleSubmit}>Submit Application</button>

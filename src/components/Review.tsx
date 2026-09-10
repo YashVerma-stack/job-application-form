@@ -3,6 +3,10 @@ type ReviewProps = {
   email: string;
   education: string;
   experience: string;
+  address?: {
+    city: string;
+    country: string;
+  };
 };
 
 export default function Review({
@@ -10,20 +14,37 @@ export default function Review({
   email,
   education,
   experience,
+  address,
 }: ReviewProps) {
   return (
     <section>
       <h2>Review Your Application</h2>
 
-      <h3>Personal Information</h3>
-      <p>Name: {name}</p>
-      <p>Email: {email}</p>
+      <p>
+        <strong>Name:</strong> {name}
+      </p>
 
-      <h3>Education</h3>
-      <p>{education}</p>
+      <p>
+        <strong>Email:</strong> {email}
+      </p>
 
-      <h3>Work Experience</h3>
-      <p>{experience}</p>
+      <p>
+        <strong>Education:</strong> {education}
+      </p>
+
+      <p>
+        <strong>Experience:</strong> {experience}
+      </p>
+
+      <h3>Address</h3>
+
+      <p>
+        <strong>City:</strong> {address?.city}
+      </p>
+
+      <p>
+        <strong>Country:</strong> {address?.country}
+      </p>
     </section>
   );
 }
